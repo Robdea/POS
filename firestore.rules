@@ -1,0 +1,43 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function userRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    function isJefe() {
+      return isSignedIn() && userRole() == 'Jefe';
+    }
+
+    match /users/{userId} {
+      allow read, list: if isSignedIn();
+      allow create, update: if isJefe();
+      allow delete: if false;
+    }
+
+    match /products/{productId} {
+      allow read, list: if isSignedIn();
+      allow create, update: if isSignedIn();
+      allow delete: if isJefe();
+    }
+
+    match /categories/{categoryId} {
+      allow read, list: if isSignedIn();
+      allow create, update: if isSignedIn();
+      allow delete: if isJefe();
+    }
+
+    match /audit_logs/{logId} {
+      allow read, list: if isSignedIn();
+      allow create: if isSignedIn()
+        && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if false;
+    }
+  }
+}
